@@ -88,6 +88,7 @@ func ConfigSetup() *flag.FlagSet {
 	cas.StringVar(&CliConfig.Username, "username", CliConfig.Username, "username for authentication")
 	cas.StringVar(&CliConfig.Password, "password", CliConfig.Password, "password for authentication")
 	cas.StringVar(&CliConfig.SchemaFile, "schema-file", CliConfig.SchemaFile, "File containing the needed schemas in case database needs initializing")
+
 	globalconf.Register("cassandra", cas, flag.ExitOnError)
 	return cas
 }

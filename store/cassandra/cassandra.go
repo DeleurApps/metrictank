@@ -18,7 +18,7 @@ import (
 	"github.com/grafana/metrictank/stats"
 	"github.com/grafana/metrictank/tracing"
 	"github.com/grafana/metrictank/util"
-	"github.com/hailocab/go-hostpool"
+	hostpool "github.com/hailocab/go-hostpool"
 	opentracing "github.com/opentracing/opentracing-go"
 	tags "github.com/opentracing/opentracing-go/ext"
 	log "github.com/sirupsen/logrus"

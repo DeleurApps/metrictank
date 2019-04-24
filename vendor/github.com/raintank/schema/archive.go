@@ -8,6 +8,7 @@ import (
 )
 
 //go:generate stringer -type=Method -linecomment
+//go:generate msgp
 
 // Archive represents a metric archive
 // the zero value represents a raw metric

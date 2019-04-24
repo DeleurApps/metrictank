@@ -20,8 +20,8 @@ import (
 
 	"github.com/grafana/metrictank/conf"
 	"github.com/grafana/metrictank/logger"
+	"github.com/grafana/metrictank/mdata"
 	"github.com/grafana/metrictank/mdata/chunk"
-	"github.com/grafana/metrictank/mdata/chunk/archive"
 	"github.com/kisielk/whisper-go/whisper"
 	"github.com/raintank/schema"
 	log "github.com/sirupsen/logrus"
@@ -167,7 +167,7 @@ func processFromChan(pos *posTracker, files chan string, wg *sync.WaitGroup) {
 
 		name := getMetricName(file)
 		log.Debugf("Processing file %s (%s)", file, name)
-		met, err := getMetric(w, file, name)
+		data, err := getMetric(w, file, name)
 		if err != nil {
 			log.Errorf("Failed to get metric: %q", err.Error())
 			continue
@@ -176,7 +176,7 @@ func processFromChan(pos *posTracker, files chan string, wg *sync.WaitGroup) {
 		success := false
 		attempts := 0
 		for !success {
-			b, err := met.MarshalCompressed()
+			b, err := data.MarshalCompressed()
 			if err != nil {
 				log.Errorf("Failed to encode metric: %q", err.Error())
 				continue
@@ -269,31 +269,47 @@ func shortAggMethodString(aggMethod whisper.AggregationMethod) (string, error) {
 	}
 }
 
-func getMetric(w *whisper.Whisper, file, name string) (archive.Metric, error) {
-	res := archive.Metric{
-		AggregationMethod: uint32(w.Header.Metadata.AggregationMethod),
+func convertWhisperMethod(whisperMethod whisper.AggregationMethod) (schema.Method, error) {
+	switch whisperMethod {
+	case whisper.AggregationAverage:
+		return schema.Avg, nil
+	case whisper.AggregationSum:
+		return schema.Sum, nil
+	case whisper.AggregationLast:
+		return schema.Lst, nil
+	case whisper.AggregationMax:
+		return schema.Max, nil
+	case whisper.AggregationMin:
+		return schema.Min, nil
+	default:
+		return 0, fmt.Errorf("Unknown whisper method: %d", whisperMethod)
 	}
+}
+
+func getMetric(w *whisper.Whisper, file, name string) (mdata.MdWithCwrs, error) {
+	res := mdata.MdWithCwrs{
+		Md: schema.MetricData{
+			Name:  name,
+			Value: 0,
+			Unit:  "unknown",
+			Time:  0,
+			Mtype: "gauge",
+			Tags:  []string{},
+			OrgId: *orgId,
+		},
+	}
+
 	if len(w.Header.Archives) == 0 {
 		return res, fmt.Errorf("Whisper file contains no archives: %q", file)
 	}
 
-	method, err := shortAggMethodString(w.Header.Metadata.AggregationMethod)
+	method, err := convertWhisperMethod(w.Header.Metadata.AggregationMethod)
 	if err != nil {
 		return res, err
 	}
 
-	md := schema.MetricData{
-		Name:     name,
-		Interval: int(w.Header.Archives[0].SecondsPerPoint),
-		Value:    0,
-		Unit:     "unknown",
-		Time:     0,
-		Mtype:    "gauge",
-		Tags:     []string{},
-		OrgId:    *orgId,
-	}
-	md.SetId()
-	_, schem := schemas.Match(md.Name, int(w.Header.Archives[0].SecondsPerPoint))
+	res.Md.Interval = int(w.Header.Archives[0].SecondsPerPoint)
+	res.Md.SetId()
 
 	points := make(map[int][]whisper.Point)
 	for i := range w.Header.Archives {
@@ -304,32 +320,33 @@ func getMetric(w *whisper.Whisper, file, name string) (archive.Metric, error) {
 		points[i] = p
 	}
 
+	_, selectedSchema := schemas.Match(res.Md.Name, int(w.Header.Archives[0].SecondsPerPoint))
 	conversion := newConversion(w.Header.Archives, points, method)
-	for retIdx, retention := range schem.Retentions {
+	for retIdx, retention := range selectedSchema.Retentions {
 		convertedPoints := conversion.getPoints(retIdx, uint32(retention.SecondsPerPoint), uint32(retention.NumberOfPoints))
 		for m, p := range convertedPoints {
 			if len(p) == 0 {
 				continue
 			}
-			mkey, err := schema.MKeyFromString(md.Id)
+
+			mkey, err := schema.MKeyFromString(res.Md.Id)
 			if err != nil {
 				panic(err)
 			}
-			rowKey := getRowKey(retIdx, mkey, m, retention.SecondsPerPoint)
+
 			encodedChunks := encodedChunksFromPoints(p, uint32(retention.SecondsPerPoint), retention.ChunkSpan)
-			log.Debugf("Archive %d Method %s got %d points = %d chunks at a span of %d", retIdx, m, len(p), len(encodedChunks), retention.ChunkSpan)
-			res.Archives = append(res.Archives, archive.Archive{
-				SecondsPerPoint: uint32(retention.SecondsPerPoint),
-				Points:          uint32(retention.NumberOfPoints),
-				Chunks:          encodedChunks,
-				RowKey:          rowKey.String(),
-			})
-			if int64(p[len(p)-1].Timestamp) > md.Time {
-				md.Time = int64(p[len(p)-1].Timestamp)
+			for _, chunk := range encodedChunks {
+				res.Cwrs = append(res.Cwrs, mdata.NewChunkWriteRequest(
+					func() {},
+					schema.GetAMKey(mkey, m, retention.ChunkSpan),
+					uint32(retention.MaxRetention()),
+					chunk.Series.T0,
+					chunk.Encode(retention.ChunkSpan),
+					time.Now(),
+				))
 			}
 		}
 	}
-	res.MetricData = md
 
 	return res, nil
 }
@@ -345,11 +362,11 @@ func getRowKey(retIdx int, mkey schema.MKey, meth string, secondsPerPoint int) s
 	}
 }
 
-func encodedChunksFromPoints(points []whisper.Point, intervalIn, chunkSpan uint32) []chunk.IterGen {
+func encodedChunksFromPoints(points []whisper.Point, intervalIn, chunkSpan uint32) []*chunk.Chunk {
 	var point whisper.Point
 	var t0, prevT0 uint32
 	var c *chunk.Chunk
-	var encodedChunks []chunk.IterGen
+	var encodedChunks []*chunk.Chunk
 
 	for _, point = range points {
 		// this shouldn't happen, but if it would we better catch it here because Metrictank wouldn't handle it well:
@@ -364,12 +381,7 @@ func encodedChunksFromPoints(points []whisper.Point, intervalIn, chunkSpan uint3
 			prevT0 = t0
 		} else if prevT0 != t0 {
 			c.Finish()
-
-			itgen, err := chunk.NewIterGen(c.Series.T0, intervalIn, c.Encode(chunkSpan))
-			if err != nil {
-				panic(fmt.Sprintf("ERROR: failed to construct IterGen: %s", err))
-			}
-			encodedChunks = append(encodedChunks, itgen)
+			encodedChunks = append(encodedChunks, c)
 
 			c = chunk.New(t0)
 			prevT0 = t0
@@ -385,11 +397,7 @@ func encodedChunksFromPoints(points []whisper.Point, intervalIn, chunkSpan uint3
 	// or if writeUnfinishedChunks is on, we close the chunk and push it
 	if point.Timestamp == t0+chunkSpan-intervalIn || *writeUnfinishedChunks {
 		c.Finish()
-		itgen, err := chunk.NewIterGen(c.Series.T0, intervalIn, c.Encode(chunkSpan))
-		if err != nil {
-			panic(fmt.Sprintf("ERROR: failed to construct IterGen: %s", err))
-		}
-		encodedChunks = append(encodedChunks, itgen)
+		encodedChunks = append(encodedChunks, c)
 	}
 
 	return encodedChunks

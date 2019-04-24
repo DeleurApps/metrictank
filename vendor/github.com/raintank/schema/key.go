@@ -9,8 +9,6 @@ import (
 )
 
 //go:generate msgp
-//msgp:ignore AMKey
-// don't ignore Key, MKey because it's used for MetricDefinition
 
 var ErrStringTooShort = errors.New("string to short")
 var ErrInvalidFormat = errors.New("invalid format")

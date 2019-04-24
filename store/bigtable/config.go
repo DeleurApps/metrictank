@@ -67,7 +67,7 @@ func NewStoreConfig() *StoreConfig {
 
 var CliConfig = NewStoreConfig()
 
-func ConfigSetup() {
+func ConfigSetup() *flag.FlagSet {
 	btStore := flag.NewFlagSet("bigtable-store", flag.ExitOnError)
 	btStore.BoolVar(&CliConfig.Enabled, "enabled", CliConfig.Enabled, "enable the bigtable backend store plugin")
 	btStore.StringVar(&CliConfig.GcpProject, "gcp-project", CliConfig.GcpProject, "Name of GCP project the bigtable cluster resides in")
@@ -83,7 +83,7 @@ func ConfigSetup() {
 	btStore.BoolVar(&CliConfig.CreateCF, "create-cf", CliConfig.CreateCF, "enable the creation of the table and column families")
 
 	globalconf.Register("bigtable-store", btStore, flag.ExitOnError)
-	return
+	return btStore
 }
 
 func ConfigProcess(schemaMaxChunkSpan uint32) {
