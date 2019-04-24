@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/grafana/metrictank/mdata"
+	bigTableStore "github.com/grafana/metrictank/store/bigtable"
+	cassandraStore "github.com/grafana/metrictank/store/cassandra"
 
 	"github.com/grafana/metrictank/cluster"
 	"github.com/grafana/metrictank/cluster/partitioner"
@@ -96,10 +98,18 @@ func main() {
 		fmt.Printf("global config flags:\n\n")
 		globalFlags.PrintDefaults()
 		fmt.Println()
+		fmt.Printf("storetype: only 'cass' and 'bt' supported\n\n")
+		fmt.Printf("cass store config flags:\n\n")
+		cassandraStore.ConfigSetup().PrintDefaults()
+		fmt.Println()
+		fmt.Printf("bt store config flags:\n\n")
+		bigTableStore.ConfigSetup().PrintDefaults()
+		fmt.Println()
 		fmt.Printf("idxtype: only 'cass' and 'bt' supported\n\n")
-		fmt.Printf("cass config flags:\n\n")
+		fmt.Printf("cass index config flags:\n\n")
 		cassandra.ConfigSetup().PrintDefaults()
-		fmt.Printf("bt config flags:\n\n")
+		fmt.Println()
+		fmt.Printf("bt index config flags:\n\n")
 		bigtable.ConfigSetup().PrintDefaults()
 		fmt.Println()
 		fmt.Println("EXAMPLES:")
