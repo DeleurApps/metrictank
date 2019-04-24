@@ -252,23 +252,6 @@ func sortPoints(points pointSorter) pointSorter {
 	return points
 }
 
-func shortAggMethodString(aggMethod whisper.AggregationMethod) (string, error) {
-	switch aggMethod {
-	case whisper.AggregationAverage:
-		return "avg", nil
-	case whisper.AggregationSum:
-		return "sum", nil
-	case whisper.AggregationMin:
-		return "min", nil
-	case whisper.AggregationMax:
-		return "max", nil
-	case whisper.AggregationLast:
-		return "lst", nil
-	default:
-		return "", fmt.Errorf("Unknown aggregation method %d", aggMethod)
-	}
-}
-
 func convertWhisperMethod(whisperMethod whisper.AggregationMethod) (schema.Method, error) {
 	switch whisperMethod {
 	case whisper.AggregationAverage:
@@ -349,17 +332,6 @@ func getMetric(w *whisper.Whisper, file, name string) (mdata.ArchiveRequest, err
 	}
 
 	return res, nil
-}
-
-func getRowKey(retIdx int, mkey schema.MKey, meth string, secondsPerPoint int) schema.AMKey {
-	if retIdx == 0 {
-		return schema.AMKey{MKey: mkey}
-	}
-	m, _ := schema.MethodFromString(meth)
-	return schema.AMKey{
-		MKey:    mkey,
-		Archive: schema.NewArchive(m, uint32(secondsPerPoint)),
-	}
 }
 
 func encodedChunksFromPoints(points []whisper.Point, intervalIn, chunkSpan uint32) []*chunk.Chunk {
