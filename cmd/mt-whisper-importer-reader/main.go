@@ -320,7 +320,7 @@ func getMetric(w *whisper.Whisper, file, name string) (mdata.ArchiveRequest, err
 			encodedChunks := encodedChunksFromPoints(p, uint32(retention.SecondsPerPoint), retention.ChunkSpan)
 			for _, chunk := range encodedChunks {
 				res.ChunkWriteRequests = append(res.ChunkWriteRequests, mdata.NewChunkWriteRequest(
-					func() {},
+					nil,
 					schema.GetAMKey(mkey, m, retention.ChunkSpan),
 					uint32(retention.MaxRetention()),
 					chunk.Series.T0,

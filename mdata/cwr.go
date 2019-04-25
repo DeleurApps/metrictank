@@ -27,7 +27,7 @@ type ChunkWriteRequest struct {
 }
 
 // NewChunkWriteRequest creates a new ChunkWriteRequest
-func NewChunkWriteRequest(callback func(), key schema.AMKey, ttl, t0 uint32, data []byte, ts time.Time) ChunkWriteRequest {
+func NewChunkWriteRequest(callback ChunkSaveCallback, key schema.AMKey, ttl, t0 uint32, data []byte, ts time.Time) ChunkWriteRequest {
 	return ChunkWriteRequest{callback, key, ttl, t0, data, ts}
 }
 

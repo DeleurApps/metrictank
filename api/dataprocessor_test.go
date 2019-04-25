@@ -562,7 +562,7 @@ func TestGetSeriesCachedStore(t *testing.T) {
 						c.Add(metric, prevts, itgen)
 					}
 					if pattern[i] == 's' || pattern[i] == 'b' {
-						cwr := mdata.NewChunkWriteRequest(func() {}, metric, 0, chunks[i].Series.T0, encodedChunk, time.Now())
+						cwr := mdata.NewChunkWriteRequest(nil, metric, 0, chunks[i].Series.T0, encodedChunk, time.Now())
 						store.Add(&cwr)
 					}
 					prevts = chunks[i].Series.T0
