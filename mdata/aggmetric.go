@@ -83,13 +83,13 @@ func NewAggMetric(store Store, cachePusher cache.CachePusher, key schema.AMKey, 
 func (a *AggMetric) SyncChunkSaveState(ts uint32, sendPersist bool) ChunkSaveCallback {
 	return func() {
 		a.Lock()
-		defer a.Unlock()
 		if ts > a.lastSaveFinish {
 			a.lastSaveFinish = ts
 		}
 		if ts > a.lastSaveStart {
 			a.lastSaveStart = ts
 		}
+		a.Unlock()
 		log.Debugf("AM: metric %s at chunk T0=%d has been saved.", a.key, ts)
 		if sendPersist {
 			SendPersistMessage(a.key.String(), ts)
