@@ -7,6 +7,181 @@ import (
 )
 
 // DecodeMsg implements msgp.Decodable
+func (z *ArchiveRequest) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "MetricData":
+			err = z.MetricData.DecodeMsg(dc)
+			if err != nil {
+				err = msgp.WrapError(err, "MetricData")
+				return
+			}
+		case "ChunkWriteRequests":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "ChunkWriteRequests")
+				return
+			}
+			if cap(z.ChunkWriteRequests) >= int(zb0002) {
+				z.ChunkWriteRequests = (z.ChunkWriteRequests)[:zb0002]
+			} else {
+				z.ChunkWriteRequests = make([]ChunkWriteRequest, zb0002)
+			}
+			for za0001 := range z.ChunkWriteRequests {
+				err = z.ChunkWriteRequests[za0001].DecodeMsg(dc)
+				if err != nil {
+					err = msgp.WrapError(err, "ChunkWriteRequests", za0001)
+					return
+				}
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *ArchiveRequest) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "MetricData"
+	err = en.Append(0x82, 0xaa, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x44, 0x61, 0x74, 0x61)
+	if err != nil {
+		return
+	}
+	err = z.MetricData.EncodeMsg(en)
+	if err != nil {
+		err = msgp.WrapError(err, "MetricData")
+		return
+	}
+	// write "ChunkWriteRequests"
+	err = en.Append(0xb2, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x57, 0x72, 0x69, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.ChunkWriteRequests)))
+	if err != nil {
+		err = msgp.WrapError(err, "ChunkWriteRequests")
+		return
+	}
+	for za0001 := range z.ChunkWriteRequests {
+		err = z.ChunkWriteRequests[za0001].EncodeMsg(en)
+		if err != nil {
+			err = msgp.WrapError(err, "ChunkWriteRequests", za0001)
+			return
+		}
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *ArchiveRequest) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 2
+	// string "MetricData"
+	o = append(o, 0x82, 0xaa, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x44, 0x61, 0x74, 0x61)
+	o, err = z.MetricData.MarshalMsg(o)
+	if err != nil {
+		err = msgp.WrapError(err, "MetricData")
+		return
+	}
+	// string "ChunkWriteRequests"
+	o = append(o, 0xb2, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x57, 0x72, 0x69, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.ChunkWriteRequests)))
+	for za0001 := range z.ChunkWriteRequests {
+		o, err = z.ChunkWriteRequests[za0001].MarshalMsg(o)
+		if err != nil {
+			err = msgp.WrapError(err, "ChunkWriteRequests", za0001)
+			return
+		}
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ArchiveRequest) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "MetricData":
+			bts, err = z.MetricData.UnmarshalMsg(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "MetricData")
+				return
+			}
+		case "ChunkWriteRequests":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "ChunkWriteRequests")
+				return
+			}
+			if cap(z.ChunkWriteRequests) >= int(zb0002) {
+				z.ChunkWriteRequests = (z.ChunkWriteRequests)[:zb0002]
+			} else {
+				z.ChunkWriteRequests = make([]ChunkWriteRequest, zb0002)
+			}
+			for za0001 := range z.ChunkWriteRequests {
+				bts, err = z.ChunkWriteRequests[za0001].UnmarshalMsg(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "ChunkWriteRequests", za0001)
+					return
+				}
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *ArchiveRequest) Msgsize() (s int) {
+	s = 1 + 11 + z.MetricData.Msgsize() + 19 + msgp.ArrayHeaderSize
+	for za0001 := range z.ChunkWriteRequests {
+		s += z.ChunkWriteRequests[za0001].Msgsize()
+	}
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
 func (z *ChunkWriteRequest) DecodeMsg(dc *msgp.Reader) (err error) {
 	var field []byte
 	_ = field
@@ -210,180 +385,5 @@ func (z *ChunkWriteRequest) UnmarshalMsg(bts []byte) (o []byte, err error) {
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ChunkWriteRequest) Msgsize() (s int) {
 	s = 1 + 4 + z.Key.Msgsize() + 4 + msgp.Uint32Size + 3 + msgp.Uint32Size + 5 + msgp.BytesPrefixSize + len(z.Data) + 10 + msgp.TimeSize
-	return
-}
-
-// DecodeMsg implements msgp.Decodable
-func (z *MdWithCwrs) DecodeMsg(dc *msgp.Reader) (err error) {
-	var field []byte
-	_ = field
-	var zb0001 uint32
-	zb0001, err = dc.ReadMapHeader()
-	if err != nil {
-		err = msgp.WrapError(err)
-		return
-	}
-	for zb0001 > 0 {
-		zb0001--
-		field, err = dc.ReadMapKeyPtr()
-		if err != nil {
-			err = msgp.WrapError(err)
-			return
-		}
-		switch msgp.UnsafeString(field) {
-		case "Md":
-			err = z.Md.DecodeMsg(dc)
-			if err != nil {
-				err = msgp.WrapError(err, "Md")
-				return
-			}
-		case "Cwrs":
-			var zb0002 uint32
-			zb0002, err = dc.ReadArrayHeader()
-			if err != nil {
-				err = msgp.WrapError(err, "Cwrs")
-				return
-			}
-			if cap(z.Cwrs) >= int(zb0002) {
-				z.Cwrs = (z.Cwrs)[:zb0002]
-			} else {
-				z.Cwrs = make([]ChunkWriteRequest, zb0002)
-			}
-			for za0001 := range z.Cwrs {
-				err = z.Cwrs[za0001].DecodeMsg(dc)
-				if err != nil {
-					err = msgp.WrapError(err, "Cwrs", za0001)
-					return
-				}
-			}
-		default:
-			err = dc.Skip()
-			if err != nil {
-				err = msgp.WrapError(err)
-				return
-			}
-		}
-	}
-	return
-}
-
-// EncodeMsg implements msgp.Encodable
-func (z *MdWithCwrs) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 2
-	// write "Md"
-	err = en.Append(0x82, 0xa2, 0x4d, 0x64)
-	if err != nil {
-		return
-	}
-	err = z.Md.EncodeMsg(en)
-	if err != nil {
-		err = msgp.WrapError(err, "Md")
-		return
-	}
-	// write "Cwrs"
-	err = en.Append(0xa4, 0x43, 0x77, 0x72, 0x73)
-	if err != nil {
-		return
-	}
-	err = en.WriteArrayHeader(uint32(len(z.Cwrs)))
-	if err != nil {
-		err = msgp.WrapError(err, "Cwrs")
-		return
-	}
-	for za0001 := range z.Cwrs {
-		err = z.Cwrs[za0001].EncodeMsg(en)
-		if err != nil {
-			err = msgp.WrapError(err, "Cwrs", za0001)
-			return
-		}
-	}
-	return
-}
-
-// MarshalMsg implements msgp.Marshaler
-func (z *MdWithCwrs) MarshalMsg(b []byte) (o []byte, err error) {
-	o = msgp.Require(b, z.Msgsize())
-	// map header, size 2
-	// string "Md"
-	o = append(o, 0x82, 0xa2, 0x4d, 0x64)
-	o, err = z.Md.MarshalMsg(o)
-	if err != nil {
-		err = msgp.WrapError(err, "Md")
-		return
-	}
-	// string "Cwrs"
-	o = append(o, 0xa4, 0x43, 0x77, 0x72, 0x73)
-	o = msgp.AppendArrayHeader(o, uint32(len(z.Cwrs)))
-	for za0001 := range z.Cwrs {
-		o, err = z.Cwrs[za0001].MarshalMsg(o)
-		if err != nil {
-			err = msgp.WrapError(err, "Cwrs", za0001)
-			return
-		}
-	}
-	return
-}
-
-// UnmarshalMsg implements msgp.Unmarshaler
-func (z *MdWithCwrs) UnmarshalMsg(bts []byte) (o []byte, err error) {
-	var field []byte
-	_ = field
-	var zb0001 uint32
-	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
-	if err != nil {
-		err = msgp.WrapError(err)
-		return
-	}
-	for zb0001 > 0 {
-		zb0001--
-		field, bts, err = msgp.ReadMapKeyZC(bts)
-		if err != nil {
-			err = msgp.WrapError(err)
-			return
-		}
-		switch msgp.UnsafeString(field) {
-		case "Md":
-			bts, err = z.Md.UnmarshalMsg(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "Md")
-				return
-			}
-		case "Cwrs":
-			var zb0002 uint32
-			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "Cwrs")
-				return
-			}
-			if cap(z.Cwrs) >= int(zb0002) {
-				z.Cwrs = (z.Cwrs)[:zb0002]
-			} else {
-				z.Cwrs = make([]ChunkWriteRequest, zb0002)
-			}
-			for za0001 := range z.Cwrs {
-				bts, err = z.Cwrs[za0001].UnmarshalMsg(bts)
-				if err != nil {
-					err = msgp.WrapError(err, "Cwrs", za0001)
-					return
-				}
-			}
-		default:
-			bts, err = msgp.Skip(bts)
-			if err != nil {
-				err = msgp.WrapError(err)
-				return
-			}
-		}
-	}
-	o = bts
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *MdWithCwrs) Msgsize() (s int) {
-	s = 1 + 3 + z.Md.Msgsize() + 5 + msgp.ArrayHeaderSize
-	for za0001 := range z.Cwrs {
-		s += z.Cwrs[za0001].Msgsize()
-	}
 	return
 }

@@ -221,43 +221,43 @@ func (s *Server) healthzHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) chunksHandler(w http.ResponseWriter, req *http.Request) {
-	data := mdata.MdWithCwrs{}
+	data := mdata.ArchiveRequest{}
 	err := data.UnmarshalCompressed(req.Body)
 	if err != nil {
 		throwError(fmt.Sprintf("Error decoding cwr stream: %q", err))
 		return
 	}
 
-	if len(data.Cwrs) == 0 {
+	if len(data.ChunkWriteRequests) == 0 {
 		log.Warn("Received empty list of cwrs")
 		return
 	}
 
 	log.Debugf(
 		"Received %d cwrs for metric %s. The first has Key: %s, T0: %d, TTL: %d. The last has Key: %s, T0: %d, TTL: %d",
-		len(data.Cwrs),
-		data.Md.Name,
-		data.Cwrs[0].Key.String(),
-		data.Cwrs[0].T0,
-		data.Cwrs[0].TTL,
-		data.Cwrs[len(data.Cwrs)-1].Key.String(),
-		data.Cwrs[len(data.Cwrs)-1].T0,
-		data.Cwrs[len(data.Cwrs)-1].TTL)
+		len(data.ChunkWriteRequests),
+		data.MetricData.Name,
+		data.ChunkWriteRequests[0].Key.String(),
+		data.ChunkWriteRequests[0].T0,
+		data.ChunkWriteRequests[0].TTL,
+		data.ChunkWriteRequests[len(data.ChunkWriteRequests)-1].Key.String(),
+		data.ChunkWriteRequests[len(data.ChunkWriteRequests)-1].T0,
+		data.ChunkWriteRequests[len(data.ChunkWriteRequests)-1].TTL)
 
-	partition, err := s.partitioner.Partition(&data.Md, int32(*numPartitions))
+	partition, err := s.partitioner.Partition(&data.MetricData, int32(*numPartitions))
 	if err != nil {
 		throwError(fmt.Sprintf("Error partitioning: %q", err))
 		return
 	}
 
-	mkey, err := schema.MKeyFromString(data.Md.Id)
+	mkey, err := schema.MKeyFromString(data.MetricData.Id)
 	if err != nil {
-		throwError(fmt.Sprintf("Received invalid id: %s", data.Md.Id))
+		throwError(fmt.Sprintf("Received invalid id: %s", data.MetricData.Id))
 		return
 	}
 
-	s.index.AddOrUpdate(mkey, &data.Md, partition)
-	for _, cwr := range data.Cwrs {
+	s.index.AddOrUpdate(mkey, &data.MetricData, partition)
+	for _, cwr := range data.ChunkWriteRequests {
 		s.store.Add(&cwr)
 	}
 }

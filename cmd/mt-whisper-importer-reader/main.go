@@ -286,9 +286,9 @@ func convertWhisperMethod(whisperMethod whisper.AggregationMethod) (schema.Metho
 	}
 }
 
-func getMetric(w *whisper.Whisper, file, name string) (mdata.MdWithCwrs, error) {
-	res := mdata.MdWithCwrs{
-		Md: schema.MetricData{
+func getMetric(w *whisper.Whisper, file, name string) (mdata.ArchiveRequest, error) {
+	res := mdata.ArchiveRequest{
+		MetricData: schema.MetricData{
 			Name:  name,
 			Value: 0,
 			Unit:  "unknown",
@@ -308,8 +308,8 @@ func getMetric(w *whisper.Whisper, file, name string) (mdata.MdWithCwrs, error) 
 		return res, err
 	}
 
-	res.Md.Interval = int(w.Header.Archives[0].SecondsPerPoint)
-	res.Md.SetId()
+	res.MetricData.Interval = int(w.Header.Archives[0].SecondsPerPoint)
+	res.MetricData.SetId()
 
 	points := make(map[int][]whisper.Point)
 	for i := range w.Header.Archives {
@@ -320,7 +320,7 @@ func getMetric(w *whisper.Whisper, file, name string) (mdata.MdWithCwrs, error) 
 		points[i] = p
 	}
 
-	_, selectedSchema := schemas.Match(res.Md.Name, int(w.Header.Archives[0].SecondsPerPoint))
+	_, selectedSchema := schemas.Match(res.MetricData.Name, int(w.Header.Archives[0].SecondsPerPoint))
 	conversion := newConversion(w.Header.Archives, points, method)
 	for retIdx, retention := range selectedSchema.Retentions {
 		convertedPoints := conversion.getPoints(retIdx, uint32(retention.SecondsPerPoint), uint32(retention.NumberOfPoints))
@@ -329,14 +329,14 @@ func getMetric(w *whisper.Whisper, file, name string) (mdata.MdWithCwrs, error) 
 				continue
 			}
 
-			mkey, err := schema.MKeyFromString(res.Md.Id)
+			mkey, err := schema.MKeyFromString(res.MetricData.Id)
 			if err != nil {
 				panic(err)
 			}
 
 			encodedChunks := encodedChunksFromPoints(p, uint32(retention.SecondsPerPoint), retention.ChunkSpan)
 			for _, chunk := range encodedChunks {
-				res.Cwrs = append(res.Cwrs, mdata.NewChunkWriteRequest(
+				res.ChunkWriteRequests = append(res.ChunkWriteRequests, mdata.NewChunkWriteRequest(
 					func() {},
 					schema.GetAMKey(mkey, m, retention.ChunkSpan),
 					uint32(retention.MaxRetention()),
