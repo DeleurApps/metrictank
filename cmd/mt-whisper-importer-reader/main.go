@@ -269,38 +269,41 @@ func convertWhisperMethod(whisperMethod whisper.AggregationMethod) (schema.Metho
 	}
 }
 
-func getMetric(w *whisper.Whisper, file, name string) (mdata.ArchiveRequest, error) {
-	res := mdata.ArchiveRequest{
-		MetricData: schema.MetricData{
-			Name:  name,
-			Value: 0,
-			Unit:  "unknown",
-			Time:  0,
-			Mtype: "gauge",
-			Tags:  []string{},
-			OrgId: *orgId,
-		},
-	}
-
+func getMetric(w *whisper.Whisper, file, name string) (*mdata.ArchiveRequest, error) {
 	if len(w.Header.Archives) == 0 {
-		return res, fmt.Errorf("Whisper file contains no archives: %q", file)
+		return nil, fmt.Errorf("Whisper file contains no archives: %q", file)
 	}
 
 	method, err := convertWhisperMethod(w.Header.Metadata.AggregationMethod)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
-
-	res.MetricData.Interval = int(w.Header.Archives[0].SecondsPerPoint)
-	res.MetricData.SetId()
 
 	points := make(map[int][]whisper.Point)
 	for i := range w.Header.Archives {
 		p, err := w.DumpArchive(i)
 		if err != nil {
-			return res, fmt.Errorf("Failed to dump archive %d from whisper file %s", i, file)
+			return nil, fmt.Errorf("Failed to dump archive %d from whisper file %s", i, file)
 		}
 		points[i] = p
+	}
+
+	res := &mdata.ArchiveRequest{
+		MetricData: schema.MetricData{
+			Name:     name,
+			Value:    0,
+			Interval: int(w.Header.Archives[0].SecondsPerPoint),
+			Unit:     "unknown",
+			Time:     0,
+			Mtype:    "gauge",
+			Tags:     []string{},
+			OrgId:    *orgId,
+		},
+	}
+	res.MetricData.SetId()
+	mkey, err := schema.MKeyFromString(res.MetricData.Id)
+	if err != nil {
+		panic(err)
 	}
 
 	_, selectedSchema := schemas.Match(res.MetricData.Name, int(w.Header.Archives[0].SecondsPerPoint))
@@ -310,11 +313,6 @@ func getMetric(w *whisper.Whisper, file, name string) (mdata.ArchiveRequest, err
 		for m, p := range convertedPoints {
 			if len(p) == 0 {
 				continue
-			}
-
-			mkey, err := schema.MKeyFromString(res.MetricData.Id)
-			if err != nil {
-				panic(err)
 			}
 
 			encodedChunks := encodedChunksFromPoints(p, uint32(retention.SecondsPerPoint), retention.ChunkSpan)

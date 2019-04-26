@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"time"
+
+	"github.com/tinylib/msgp/msgp"
 
 	"github.com/raintank/schema"
 )
@@ -42,54 +43,41 @@ type ArchiveRequest struct {
 func (a *ArchiveRequest) MarshalCompressed() (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 
-	// prefix the buffer with version number 1
 	buf.WriteByte(byte(uint8(1)))
 
-	b, err := a.MarshalMsg(nil)
-	if err != nil {
-		return &buf, errors.New(fmt.Sprintf("ERROR: Marshalling metric: %q", err))
-	}
-
 	g := gzip.NewWriter(&buf)
-	_, err = g.Write(b)
-	if err != nil {
-		return &buf, errors.New(fmt.Sprintf("ERROR: Compressing MSGP data: %q", err))
-	}
+	msgp.Encode(g, a)
 
-	err = g.Close()
+	err := g.Close()
 	if err != nil {
-		return &buf, errors.New(fmt.Sprintf("ERROR: Compressing MSGP data: %q", err))
+		return &buf, fmt.Errorf("ERROR: Compressing MSGP data: %q", err)
 	}
 
 	return &buf, nil
 }
 
 func (a *ArchiveRequest) UnmarshalCompressed(b io.Reader) error {
-	reader := bufio.NewReader(b)
-	versionBuf, err := reader.ReadByte()
-	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: Failed to read received data: %q", err))
+	versionBuf := make([]byte, 1)
+	readBytes, err := b.Read(versionBuf)
+	if err != nil || readBytes != 1 {
+		return fmt.Errorf("ERROR: Failed to read one byte: %s", err)
 	}
 
-	version := uint8(versionBuf)
+	version := uint8(versionBuf[0])
 	if version != 1 {
 		return errors.New(fmt.Sprintf("ERROR: Only version 1 is supported, received version %d", version))
 	}
 
-	gzipReader, err := gzip.NewReader(reader)
+	gzipReader, err := gzip.NewReader(b)
 	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: Creating Gzip reader: %q", err))
+		return fmt.Errorf("ERROR: Creating Gzip reader: %q", err)
 	}
 
-	raw, err := ioutil.ReadAll(gzipReader)
+	err = msgp.Decode(bufio.NewReader(gzipReader), a)
 	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: Decompressing Gzip: %q", err))
+		return fmt.Errorf("ERROR: Unmarshaling Raw: %q", err)
 	}
-
-	_, err = a.UnmarshalMsg(raw)
-	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: Unmarshaling Raw: %q", err))
-	}
+	gzipReader.Close()
 
 	return nil
 }

@@ -21,13 +21,12 @@ func TestArchiveRequestEncodingDecoding(t *testing.T) {
 	}
 
 	encoded, err := originalRequest.MarshalCompressed()
-	reader := bytes.NewReader(encoded.Bytes())
 	if err != nil {
-		t.Fatalf("Expected no error when encoding request, got %q", err)
+		t.Fatalf("Failed when encoding the request: %s", err)
 	}
 
 	decodedRequest := ArchiveRequest{}
-	err = decodedRequest.UnmarshalCompressed(reader)
+	err = decodedRequest.UnmarshalCompressed(encoded)
 	if err != nil {
 		t.Fatalf("Expected no error when decoding request, got %q", err)
 	}
