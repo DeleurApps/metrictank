@@ -81,7 +81,11 @@ func NewAggMetric(store Store, cachePusher cache.CachePusher, key schema.AMKey, 
 
 // Sync the saved state of a chunk by its T0.
 func (a *AggMetric) SyncChunkSaveState(ts uint32, sendPersist bool) ChunkSaveCallback {
-	return func() {
+	return func(err error) {
+		if err != nil {
+			return
+		}
+
 		a.Lock()
 		if ts > a.lastSaveFinish {
 			a.lastSaveFinish = ts
@@ -109,27 +113,27 @@ func (a *AggMetric) SyncAggregatedChunkSaveState(ts uint32, consolidator consoli
 				panic("avg consolidator has no matching Archive(). you need sum and cnt")
 			case consolidation.Cnt:
 				if a.cntMetric != nil {
-					a.cntMetric.SyncChunkSaveState(ts, false)()
+					a.cntMetric.SyncChunkSaveState(ts, false)(nil)
 				}
 				return
 			case consolidation.Min:
 				if a.minMetric != nil {
-					a.minMetric.SyncChunkSaveState(ts, false)()
+					a.minMetric.SyncChunkSaveState(ts, false)(nil)
 				}
 				return
 			case consolidation.Max:
 				if a.maxMetric != nil {
-					a.maxMetric.SyncChunkSaveState(ts, false)()
+					a.maxMetric.SyncChunkSaveState(ts, false)(nil)
 				}
 				return
 			case consolidation.Sum:
 				if a.sumMetric != nil {
-					a.sumMetric.SyncChunkSaveState(ts, false)()
+					a.sumMetric.SyncChunkSaveState(ts, false)(nil)
 				}
 				return
 			case consolidation.Lst:
 				if a.lstMetric != nil {
-					a.lstMetric.SyncChunkSaveState(ts, false)()
+					a.lstMetric.SyncChunkSaveState(ts, false)(nil)
 				}
 				return
 			default:

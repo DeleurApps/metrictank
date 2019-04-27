@@ -246,6 +246,9 @@ func (s *Store) processWriteQueue(queue chan *mdata.ChunkWriteRequest, meter *st
 			btblPutExecDuration.Value(time.Since(pre))
 			if err != nil {
 				// all chunks in the batch failed to be written.
+				for i := range muts {
+					buf[i].Callback(err)
+				}
 				log.Errorf("btStore: unable to apply writes to bigtable. %s", err)
 				chunkSaveFail.Add(len(rowKeys))
 				if (attempts % 20) == 0 {
@@ -263,14 +266,14 @@ func (s *Store) processWriteQueue(queue chan *mdata.ChunkWriteRequest, meter *st
 				failedMutations := make([]*bigtable.Mutation, 0)
 				retryBuf := make([]*mdata.ChunkWriteRequest, 0)
 				for i, err := range errs {
+					if buf[i].Callback != nil {
+						buf[i].Callback(err)
+					}
 					if err != nil {
 						failedRowKeys = append(failedRowKeys, rowKeys[i])
 						failedMutations = append(failedMutations, muts[i])
 						retryBuf = append(retryBuf, buf[i])
 					} else {
-						if buf[i].Callback != nil {
-							buf[i].Callback()
-						}
 						log.Debugf("btStore: save complete. %s:%d %v", buf[i].Key, buf[i].T0, buf[i].Data)
 						chunkSaveOk.Inc()
 					}
@@ -292,7 +295,7 @@ func (s *Store) processWriteQueue(queue chan *mdata.ChunkWriteRequest, meter *st
 				log.Debugf("btStore: %d chunks saved to bigtable.", len(rowKeys))
 				for _, cwr := range buf {
 					if cwr.Callback != nil {
-						cwr.Callback()
+						cwr.Callback(nil)
 					}
 					log.Debugf("btStore: save complete. %s:%d %v", cwr.Key.String(), cwr.T0, cwr.Data)
 				}

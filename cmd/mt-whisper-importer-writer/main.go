@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/grafana/globalconf"
@@ -33,7 +35,7 @@ const (
 
 var (
 	confFile        = flag.String("config", "/etc/metrictank/metrictank.ini", "configuration file path")
-	exitOnError     = flag.Bool("exit-on-error", true, "Exit with a message when there's an error")
+	exitOnError     = flag.Bool("exit-on-error", false, "Exit with a message when there's an error")
 	httpEndpoint    = flag.String("http-endpoint", "127.0.0.1:8080", "The http endpoint to listen on")
 	ttlsStr         = flag.String("ttls", "35d", "list of ttl strings used by MT separated by ','")
 	partitionScheme = flag.String("partition-scheme", "bySeries", "method used for partitioning metrics. This should match the settings of tsdb-gw. (byOrg|bySeries)")
@@ -152,7 +154,9 @@ func main() {
 	}
 }
 
-func throwError(msg string) {
+func throwError(w http.ResponseWriter, msg string) {
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte(msg))
 	msg = fmt.Sprintf("%s\n", msg)
 	if *exitOnError {
 		log.Panic(msg)
@@ -169,7 +173,7 @@ func (s *Server) chunksHandler(w http.ResponseWriter, req *http.Request) {
 	data := mdata.ArchiveRequest{}
 	err := data.UnmarshalCompressed(req.Body)
 	if err != nil {
-		throwError(fmt.Sprintf("Error decoding cwr stream: %q", err))
+		throwError(w, fmt.Sprintf("Error decoding cwr stream: %q", err))
 		return
 	}
 
@@ -191,18 +195,44 @@ func (s *Server) chunksHandler(w http.ResponseWriter, req *http.Request) {
 
 	partition, err := s.partitioner.Partition(&data.MetricData, int32(*numPartitions))
 	if err != nil {
-		throwError(fmt.Sprintf("Error partitioning: %q", err))
+		throwError(w, fmt.Sprintf("Error partitioning: %q", err))
 		return
 	}
 
 	mkey, err := schema.MKeyFromString(data.MetricData.Id)
 	if err != nil {
-		throwError(fmt.Sprintf("Received invalid id: %s", data.MetricData.Id))
+		throwError(w, fmt.Sprintf("Received invalid id: %s", data.MetricData.Id))
 		return
+	}
+
+	successfulWrites := uint32(0)
+	lastErr := atomic.Value{}
+	callbackWg := sync.WaitGroup{}
+	callbackWg.Add(len(data.ChunkWriteRequests))
+	callback := func(err error) {
+		if err == nil {
+			atomic.AddUint32(&successfulWrites, 1)
+		} else {
+			lastErr.Store(err)
+		}
+
+		callbackWg.Done()
 	}
 
 	s.index.AddOrUpdate(mkey, &data.MetricData, partition)
 	for _, cwr := range data.ChunkWriteRequests {
+		cwr.Callback = callback
 		s.store.Add(&cwr)
 	}
+
+	callbackWg.Wait()
+
+	if len(data.ChunkWriteRequests) != int(successfulWrites) {
+		err := lastErr.Load().(error)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Error when writing to store: %s", err)))
+		return
+	}
+
+	w.Write([]byte("OK"))
 }

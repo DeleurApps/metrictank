@@ -14,7 +14,7 @@ import (
 	"github.com/raintank/schema"
 )
 
-type ChunkSaveCallback func()
+type ChunkSaveCallback func(error)
 
 // ChunkWriteRequest is a request to write a chunk into a store
 //go:generate msgp
